@@ -1,257 +1,10 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Platino Español - Jeu de Conjugaison</title>
-    <!-- Chargement de Supabase directement depuis le web -->
-<script src="https://cloudflare.com"></script>
-    <style>
-        body { font-family: sans-serif; background: #eef2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; color: #2c3e50; }
-        h1 { color: #2c3e50; margin-bottom: 5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
-        h1 span { color: #0076ff; }
-        .instructions { margin-bottom: 20px; font-style: italic; color: #64748b; }
-        
-        /* --- Style Écran de Connexion --- */
-        #login-screen { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%; margin-top: 50px; }
-        .form-group { margin-bottom: 15px; text-align: left; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #475569; }
-        .form-group input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
-        #login-error { color: #dc2626; font-size: 0.9rem; margin-top: 10px; display: none; }
-        
-        /* --- Style Zone de Jeu --- */
-        #game-screen { display: none; flex-direction: column; align-items: center; width: 100%; }
-        #welcome-msg { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; color: #0076ff; }
-
-        table { border-collapse: collapse; width: 100%; max-width: 950px; background: white; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; margin-bottom: 25px; }
-        th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: center; }
-        th { background-color: #334155; color: #f8fafc; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; }
-        tr:nth-child(even) { background-color: #f8fafc; }
-        
-        .dropzone { width: 110px; height: 35px; border: 2px dashed #cbd5e1; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; background: #f8fafc; transition: 0.2s; }
-        .dropzone.hovered { background: #e0f2fe; border-color: #0076ff; }
-        
-        .labels-box { max-width: 950px; background: #fff; border: 2px solid #e2e8f0; padding: 20px; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-        
-        .label { background: #f1f5f9; border: 2px solid #cbd5e1; color: #334155; padding: 6px 12px; font-weight: bold; border-radius: 6px; cursor: grab; user-select: none; font-size: 0.95rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.1s; }
-        .label:active { cursor: grabbing; transform: scale(0.95); }
-        
-        .correct-cell { background: #dcfce7 !important; border: 2px solid #22c55e !important; color: #15803d !important; }
-        .btn-container { margin-top: 25px; display: flex; gap: 15px; }
-        
-        button { background: #0076ff; color: white; border: none; padding: 12px 40px; font-size: 1.1rem; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px -1px rgba(0,118,255,0.2); transition: 0.2s; }
-        button:hover { background: #005ecb; transform: translateY(-1px); }
-        button.logout-btn { background: #64748b; }
-        button.logout-btn:hover { background: #475569; }
-    </style>
-</head>
-<body>
-
-    <h1>✨ Platino <span>Español</span></h1>
-
-    <!-- ÉCRAN DE CONNEXION -->
-    <div id="login-screen">
-        <h2>Connexion Élève</h2>
-        <div class="form-group">
-            <label for="username">Identifiant :</label>
-            <input type="text" id="username" placeholder="Ex: eleve1">
-        </div>
-        <div class="form-group">
-            <label for="password">Mot de passe :</label>
-            <input type="password" id="password" placeholder="••••••••">
-        </div>
-        <button onclick="handleLogin()">Se connecter</button>
-        <div id="login-error">Identifiant ou mot de passe incorrect.</div>
-    </div>
-
-    <!-- ÉCRAN DE JEU (MASQUÉ PAR DÉFAUT) -->
-    <div id="game-screen">
-        <div id="welcome-msg"></div>
-        <p class="instructions">Glissez les étiquettes du bas dans les bonnes cases du tableau pour atteindre le niveau Platine !</p>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Verbe</th>
-                    <th>Yo</th>
-                    <th>Tú</th>
-                    <th>Él / Ella</th>
-                    <th>Nosotros</th>
-                    <th>Vosotros</th>
-                    <th>Ellos / Ellas</th>
-                </tr>
-            </thead>
-            <tbody id="table-body"></tbody>
-        </table>
-
-        <h3>🏷️ Boîte d'étiquettes (Mélangées)</h3>
-        <div class="labels-box" id="labels-container"></div>
-
-        <div class="btn-container">
-            <button onclick="checkGame()">Valider mes réponses</button>
-            <button class="logout-btn" onclick="handleLogout()">Se déconnecter</button>
-        </div>
-    </div>
-
     <script>
         // --- ⚙️ CONFIGURATION SUPABASE AUTOMATIQUE ---
         const SUPABASE_URL = "https://supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZnZobGVnd3NtamJmdW15cnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3ODk0ODQsImV4cCI6MjEwNDM2NTQ4NH0.YveDHpOEQK7qJQuoomiqotTZQZlslDOnSQrhuFIr_t0";
 
-        const { createClient } = window.supabase;
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        // --- DONNÉES DU JEU ---
-        const verbsData = [
-            { name: "Hablar (régulier)", forms: ["hablo", "hablas", "habla", "hablamos", "hablais", "hablan"] },
-            { name: "Aprender (régulier)", forms: ["aprendo", "aprendes", "aprende", "aprendemos", "aprendéis", "aprenden"] },
-            { name: "Vivir (régulier)", forms: ["vivo", "vives", "vive", "vivimos", "vivís", "viven"] },
-            { name: "Llamarse (pronominal)", forms: ["me llamo", "te llamas", "se llama", "nos llamamos", "os llamáis", "se llaman"] },
-            { name: "Ser (irrégulier)", forms: ["soy", "eres", "es", "somos", "sois", "son"] },
-            { name: "Tener (irrégulier)", forms: ["tengo", "tienes", "tiene", "tenemos", "tenéis", "tienen"] },
-            { name: "Ir (irrégulier)", forms: ["voy", "vas", "va", "vamos", "vais", "van"] },
-            { name: "Estar (irrégulier)", forms: ["estoy", "estás", "está", "estamos", "estais", "están"] }
-        ];
-
-        const tableBody = document.getElementById("table-body");
-        const labelsContainer = document.getElementById("labels-container");
-        let allForms = [];
-        // --- GESTION DE LA CONNEXION AVEC LA TABLE PERSONNALISÉE ---
-        async function handleLogin() {
-            const userInput = document.getElementById("username").value.trim();
-            const passInput = document.getElementById("password").value.trim();
-            const errorMsg = document.getElementById("login-error");
-
-            const { data, error } = await supabase
-                .from('eleves')
-                .select('identifiant')
-                .eq('identifiant', userInput)
-                .eq('mot_de_passe', passInput);
-
-            if (error) {
-                errorMsg.innerText = "Erreur technique : " + error.message;
-                errorMsg.style.display = "block";
-            } else if (data && data.length > 0) {
-                errorMsg.style.display = "none";
-                document.getElementById("login-screen").style.display = "none";
-                document.getElementById("game-screen").style.display = "flex";
-                
-                document.getElementById("welcome-msg").innerText = `¡Hola! Bonne chance, élève : ${userInput}`;
-                initGame();
-            } else {
-                errorMsg.innerText = "Identifiant ou mot de passe incorrect.";
-                errorMsg.style.display = "block";
-            }
-        }
-
-        function handleLogout() {
-            document.getElementById("username").value = "";
-            document.getElementById("password").value = "";
-            document.getElementById("game-screen").style.display = "none";
-            document.getElementById("login-screen").style.display = "block";
-            tableBody.innerHTML = "";
-            labelsContainer.innerHTML = "";
-            allForms = [];
-        }
-
-        // --- INITIALISATION DU JEU ---
-        function initGame() {
-            verbsData.forEach((verb, verbIdx) => {
-                const row = document.createElement("tr");
-                const nameCell = document.createElement("td");
-                nameCell.innerHTML = `<strong>${verb.name}</strong>`;
-                row.appendChild(nameCell);
-
-                verb.forms.forEach((form, formIdx) => {
-                    const cell = document.createElement("td");
-                    const dropzone = document.createElement("div");
-                    dropzone.className = "dropzone";
-                    dropzone.dataset.correct = form.toLowerCase();
-                    dropzone.id = `dz-${verbIdx}-${formIdx}`;
-                    
-                    dropzone.addEventListener("dragover", e => e.preventDefault());
-                    dropzone.addEventListener("dragenter", () => dropzone.classList.add("hovered"));
-                    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("hovered"));
-                    dropzone.addEventListener("drop", (e) => {
-                        dropzone.classList.remove("hovered");
-                        const labelId = e.dataTransfer.getData("text/plain");
-                        const labelEl = document.getElementById(labelId);
-                        if (labelEl && dropzone.children.length === 0) {
-                            dropzone.appendChild(labelEl);
-                        }
-                    });
-
-                    cell.appendChild(dropzone);
-                    row.appendChild(cell);
-                    allForms.push(form);
-                });
-                tableBody.appendChild(row);
-            });
-
-            labelsContainer.addEventListener("dragover", e => e.preventDefault());
-            labelsContainer.addEventListener("drop", (e) => {
-                const labelId = e.dataTransfer.getData("text/plain");
-                const labelEl = document.getElementById(labelId);
-                if (labelEl) labelsContainer.appendChild(labelEl);
-            });
-
-            for (let i = allForms.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [allForms[i], allForms[j]] = [allForms[j], allForms[i]];
-            }
-
-            allForms.forEach((form, idx) => {
-                const labelEl = document.createElement("div");
-                labelEl.className = "label";
-                labelEl.id = `label-${idx}`;
-                labelEl.draggable = true;
-                labelEl.innerText = form;
-                labelEl.addEventListener("dragstart", (e) => {
-                    e.dataTransfer.setData("text/plain", labelEl.id);
-                });
-                labelsContainer.appendChild(labelEl);
-            });
-        }
-
-        // --- VÉRIFICATION ---
-        function checkGame() {
-            const dropzones = document.querySelectorAll(".dropzone");
-            let errors = 0;
-            let empty = 0;
-
-            dropzones.forEach(dz => {
-                if (dz.children.length === 0) {
-                    empty++;
-                    dz.style.borderColor = "#cbd5e1";
-                } else {
-                    const placedLabel = dz.children[0];
-                    const answer = placedLabel.innerText.trim().toLowerCase();
-                    const correctAnswer = dz.dataset.correct;
-
-                    if (answer === correctAnswer) {
-                        placedLabel.className = "label correct-cell";
-                        dz.style.border = "none";
-                    } else {
-                        errors++;
-                        labelsContainer.appendChild(placedLabel);
-                    }
-                }
-            });
-
-            if (empty > 0) {
-                alert(`Il reste ${empty} cases vides ! Continuez à remplir le tableau.`);
-            } else if (errors > 0) {
-                alert(`Dommage ! Les étiquettes incorrectes ont été renvoyées en bas. Essayez encore !`);
-            } else {
-                alert(`🏆 Félicitations ! Vous avez validé le niveau PLATINE avec brio !`);
-            }
-        }
-        <script>
-        // --- ⚙️ CONFIGURATION SUPABASE AUTOMATIQUE ---
-        const SUPABASE_URL = "https://supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZnZobGVnd3NtamJmdW15cnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3ODk0ODQsImV4cCI6MjEwNDM2NTQ4NH0.YveDHpOEQK7qJQuoomiqotTZQZlslDOnSQrhuFIr_t0";
-
         // Détection automatique de la bibliothèque Supabase selon le serveur (CDN)
-        const lib = window.supabase || window.supabasejs || (window.supabasejs ? window.supabasejs : null);
+        const lib = window.supabase || window.supabasejs;
         const supabase = lib ? (lib.createClient ? lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : lib.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)) : null;
 
         // --- DONNÉES DU JEU ---
@@ -277,188 +30,34 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             const errorMsg = document.getElementById("login-error");
 
             if (!supabase) {
-                errorMsg.innerText = "Erreur : La connexion à Supabase a été bloquée par votre réseau / pare-feu.";
+                errorMsg.innerText = "Erreur : La connexion à Supabase n'a pas pu s'initialiser.";
                 errorMsg.style.display = "block";
                 return;
             }
 
-            const { data, error } = await supabase
-                .from('eleves')
-                .select('identifiant')
-                .eq('identifiant', userInput)
-                .eq('mot_de_passe', passInput);
+            try {
+                const { data, error } = await supabase
+                    .from('eleves')
+                    .select('identifiant')
+                    .eq('identifiant', userInput)
+                    .eq('mot_de_passe', passInput);
 
-            if (error) {
-                errorMsg.innerText = "Erreur technique : " + error.message;
-                errorMsg.style.display = "block";
-            } else if (data && data.length > 0) {
-                errorMsg.style.display = "none";
-                document.getElementById("login-screen").style.display = "none";
-                document.getElementById("game-screen").style.display = "flex";
-                document.getElementById("welcome-msg").innerText = `¡Hola! Bonne chance, élève : ${userInput}`;
-                initGame();
-            } else {
-                errorMsg.innerText = "Identifiant ou mot de passe incorrect.";
-                errorMsg.style.display = "block";
-            }
-        }
-
-        function handleLogout() {
-            document.getElementById("username").value = "";
-            document.getElementById("password").value = "";
-            document.getElementById("game-screen").style.display = "none";
-            document.getElementById("login-screen").style.display = "block";
-            tableBody.innerHTML = "";
-            labelsContainer.innerHTML = "";
-            allForms = [];
-        }
-
-        // --- INITIALISATION DU JEU ---
-        function initGame() {
-            verbsData.forEach((verb, verbIdx) => {
-                const row = document.createElement("tr");
-                const nameCell = document.createElement("td");
-                nameCell.innerHTML = `<strong>${verb.name}</strong>`;
-                row.appendChild(nameCell);
-
-                verb.forms.forEach((form, formIdx) => {
-                    const cell = document.createElement("td");
-                    const dropzone = document.createElement("div");
-                    dropzone.className = "dropzone";
-                    dropzone.dataset.correct = form.toLowerCase();
-                    dropzone.id = `dz-${verbIdx}-${formIdx}`;
-                    
-                    dropzone.addEventListener("dragover", e => e.preventDefault());
-                    dropzone.addEventListener("dragenter", () => dropzone.classList.add("hovered"));
-                    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("hovered"));
-                    dropzone.addEventListener("drop", (e) => {
-                        dropzone.classList.remove("hovered");
-                        const labelId = e.dataTransfer.getData("text/plain");
-                        const labelEl = document.getElementById(labelId);
-                        if (labelEl && dropzone.children.length === 0) {
-                            dropzone.appendChild(labelEl);
-                        }
-                    });
-
-                    cell.appendChild(dropzone);
-                    row.appendChild(cell);
-                    allForms.push(form);
-                });
-                tableBody.appendChild(row);
-            });
-
-            labelsContainer.addEventListener("dragover", e => e.preventDefault());
-            labelsContainer.addEventListener("drop", (e) => {
-                const labelId = e.dataTransfer.getData("text/plain");
-                const labelEl = document.getElementById(labelId);
-                if (labelEl) labelsContainer.appendChild(labelEl);
-            });
-
-            for (let i = allForms.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [allForms[i], allForms[j]] = [allForms[j], allForms[i]];
-            }
-
-            allForms.forEach((form, idx) => {
-                const labelEl = document.createElement("div");
-                labelEl.className = "label";
-                labelEl.id = `label-${idx}`;
-                labelEl.draggable = true;
-                labelEl.innerText = form;
-                labelEl.addEventListener("dragstart", (e) => {
-                    e.dataTransfer.setData("text/plain", labelEl.id);
-                });
-                labelsContainer.appendChild(labelEl);
-            });
-        }
-
-        // --- VÉRIFICATION ---
-        function checkGame() {
-            const dropzones = document.querySelectorAll(".dropzone");
-            let errors = 0;
-            let empty = 0;
-
-            dropzones.forEach(dz => {
-                if (dz.children.length === 0) {
-                    empty++;
-                    dz.style.borderColor = "#cbd5e1";
+                if (error) {
+                    errorMsg.innerText = "Erreur technique : " + error.message;
+                    errorMsg.style.display = "block";
+                } else if (data && data.length > 0) {
+                    // CORRECTION ICI : data[0] pour lire le premier élève trouvé
+                    errorMsg.style.display = "none";
+                    document.getElementById("login-screen").style.display = "none";
+                    document.getElementById("game-screen").style.display = "flex";
+                    document.getElementById("welcome-msg").innerText = `¡Hola! Bonne chance, élève : ${data[0].identifiant}`;
+                    initGame();
                 } else {
-                    const placedLabel = dz.children[0];
-                    const answer = placedLabel.innerText.trim().toLowerCase();
-                    const correctAnswer = dz.dataset.correct;
-
-                    if (answer === correctAnswer) {
-                        placedLabel.className = "label correct-cell";
-                        dz.style.border = "none";
-                    } else {
-                        errors++;
-                        labelsContainer.appendChild(placedLabel);
-                    }
+                    errorMsg.innerText = "Identifiant ou mot de passe incorrect.";
+                    errorMsg.style.display = "block";
                 }
-            });
-
-            if (empty > 0) {
-                alert(`Il reste ${empty} cases vides ! Continuez à remplir le tableau.`);
-            } else if (errors > 0) {
-                alert(`Dommage ! Les étiquettes incorrectes ont été renvoyées en bas. Essayez encore !`);
-            } else {
-                alert(`🏆 Félicitations ! Vous avez validé le niveau PLATINE avec brio !`);
-            }
-        }
-        <script>
-        // --- ⚙️ CONFIGURATION SUPABASE AUTOMATIQUE ---
-        const SUPABASE_URL = "https://supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZnZobGVnd3NtamJmdW15cnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3ODk0ODQsImV4cCI6MjEwNDM2NTQ4NH0.YveDHpOEQK7qJQuoomiqotTZQZlslDOnSQrhuFIr_t0";
-
-        // Détection automatique de la bibliothèque Supabase selon le serveur (CDN)
-        const lib = window.supabase || window.supabasejs || (window.supabasejs ? window.supabasejs : null);
-        const supabase = lib ? (lib.createClient ? lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : lib.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)) : null;
-
-        // --- DONNÉES DU JEU ---
-        const verbsData = [
-            { name: "Hablar (régulier)", forms: ["hablo", "hablas", "habla", "hablamos", "hablais", "hablan"] },
-            { name: "Aprender (régulier)", forms: ["aprendo", "aprendes", "aprende", "aprendemos", "aprendéis", "aprenden"] },
-            { name: "Vivir (régulier)", forms: ["vivo", "vives", "vive", "vivimos", "vivís", "viven"] },
-            { name: "Llamarse (pronominal)", forms: ["me llamo", "te llamas", "se llama", "nos llamamos", "os llamáis", "se llaman"] },
-            { name: "Ser (irrégulier)", forms: ["soy", "eres", "es", "somos", "sois", "son"] },
-            { name: "Tener (irrégulier)", forms: ["tengo", "tienes", "tiene", "tenemos", "tenéis", "tienen"] },
-            { name: "Ir (irrégulier)", forms: ["voy", "vas", "va", "vamos", "vais", "van"] },
-            { name: "Estar (irrégulier)", forms: ["estoy", "estás", "está", "estamos", "estais", "están"] }
-        ];
-
-        const tableBody = document.getElementById("table-body");
-        const labelsContainer = document.getElementById("labels-container");
-        let allForms = [];
-
-        // --- GESTION DE LA CONNEXION ---
-        async function handleLogin() {
-            const userInput = document.getElementById("username").value.trim();
-            const passInput = document.getElementById("password").value.trim();
-            const errorMsg = document.getElementById("login-error");
-
-            if (!supabase) {
-                errorMsg.innerText = "Erreur : La connexion à Supabase a été bloquée par votre réseau / pare-feu.";
-                errorMsg.style.display = "block";
-                return;
-            }
-
-            const { data, error } = await supabase
-                .from('eleves')
-                .select('identifiant')
-                .eq('identifiant', userInput)
-                .eq('mot_de_passe', passInput);
-
-            if (error) {
-                errorMsg.innerText = "Erreur technique : " + error.message;
-                errorMsg.style.display = "block";
-            } else if (data && data.length > 0) {
-                errorMsg.style.display = "none";
-                document.getElementById("login-screen").style.display = "none";
-                document.getElementById("game-screen").style.display = "flex";
-                document.getElementById("welcome-msg").innerText = `¡Hola! Bonne chance, élève : ${userInput}`;
-                initGame();
-            } else {
-                errorMsg.innerText = "Identifiant ou mot de passe incorrect.";
+            } catch (err) {
+                errorMsg.innerText = "Une erreur inconnue est survenue : " + err.message;
                 errorMsg.style.display = "block";
             }
         }
@@ -566,11 +165,5 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             }
         }
     </script>
-</body>
-</html>
-
-</body>
-</html>
-
 </body>
 </html>

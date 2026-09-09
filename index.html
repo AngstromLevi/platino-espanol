@@ -130,7 +130,12 @@
             }
 
             try {
-                const result = await supabase.from('eleves').select('identifiant', 'identifiant', userInput, 'mot_de_passe', passInput);
+                // Requête corrigée vers Supabase
+                const result = await supabase
+                    .from('eleves')
+                    .select('*')
+                    .eq('identifiant', userInput)
+                    .eq('mot_de_passe', passInput);
 
                 if (result.error) {
                     errorMsg.innerText = "Erreur serveur : " + result.error.message;

@@ -1,9 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Platino Español - Jeu de Conjugaison</title>
+    <!-- Chargement de Supabase via Cloudflare pour éviter les blocages de réseaux scolaires -->
+    <script src="https://cloudflare.com"></script>
+    <style>
+        body { font-family: sans-serif; background: #eef2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; color: #2c3e50; }
+        h1 { color: #2c3e50; margin-bottom: 5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        h1 span { color: #0076ff; }
+        .instructions { margin-bottom: 20px; font-style: italic; color: #64748b; }
+        
+        /* --- Style Écran de Connexion --- */
+        #login-screen { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%; margin-top: 50px; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #475569; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        #login-error { color: #dc2626; font-size: 0.9rem; margin-top: 10px; display: none; }
+        
+        /* --- Style Zone de Jeu --- */
+        #game-screen { display: none; flex-direction: column; align-items: center; width: 100%; }
+        #welcome-msg { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; color: #0076ff; }
+
+        table { border-collapse: collapse; width: 100%; max-width: 950px; background: white; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; margin-bottom: 25px; }
+        th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: center; }
+        th { background-color: #334155; color: #f8fafc; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        
+        .dropzone { width: 110px; height: 35px; border: 2px dashed #cbd5e1; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; background: #f8fafc; transition: 0.2s; }
+        .dropzone.hovered { background: #e0f2fe; border-color: #0076ff; }
+        
+        .labels-box { max-width: 950px; background: #fff; border: 2px solid #e2e8f0; padding: 20px; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        
+        .label { background: #f1f5f9; border: 2px solid #cbd5e1; color: #334155; padding: 6px 12px; font-weight: bold; border-radius: 6px; cursor: grab; user-select: none; font-size: 0.95rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.1s; }
+        .label:active { cursor: grabbing; transform: scale(0.95); }
+        
+        .correct-cell { background: #dcfce7 !important; border: 2px solid #22c55e !important; color: #15803d !important; }
+        .btn-container { margin-top: 25px; display: flex; gap: 15px; }
+        
+        button { background: #0076ff; color: white; border: none; padding: 12px 40px; font-size: 1.1rem; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px -1px rgba(0,118,255,0.2); transition: 0.2s; }
+        button:hover { background: #005ecb; transform: translateY(-1px); }
+        button.logout-btn { background: #64748b; }
+        button.logout-btn:hover { background: #475569; }
+    </style>
+</head>
+<body>
+
+    <h1>✨ Platino <span>Español</span></h1>
+
+    <!-- ÉCRAN DE CONNEXION -->
+    <div id="login-screen">
+        <h2>Connexion Élève</h2>
+        <div class="form-group">
+            <label for="username">Identifiant :</label>
+            <input type="text" id="username" placeholder="Ex: eleve1">
+        </div>
+        <div class="form-group">
+            <label for="password">Mot de passe :</label>
+            <input type="password" id="password" placeholder="••••••••">
+        </div>
+        <button onclick="handleLogin()">Se connecter</button>
+        <div id="login-error">Identifiant ou mot de passe incorrect.</div>
+    </div>
+    <!-- ÉCRAN DE JEU (MASQUÉ PAR DÉFAUT) -->
+    <div id="game-screen">
+        <div id="welcome-msg"></div>
+        <p class="instructions">Glissez les étiquettes du bas dans les bonnes cases du tableau pour atteindre le niveau Platine !</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Verbe</th>
+                    <th>Yo</th>
+                    <th>Tú</th>
+                    <th>Él / Ella</th>
+                    <th>Nosotros</th>
+                    <th>Vosotros</th>
+                    <th>Ellos / Ellas</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+
+        <h3>🏷️ Boîte d'étiquettes (Mélangées)</h3>
+        <div class="labels-box" id="labels-container"></div>
+
+        <div class="btn-container">
+            <button onclick="checkGame()">Valider mes réponses</button>
+            <button class="logout-btn" onclick="handleLogout()">Se déconnecter</button>
+        </div>
+    </div>
+
     <script>
         // --- ⚙️ CONFIGURATION SUPABASE AUTOMATIQUE ---
         const SUPABASE_URL = "https://supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZnZobGVnd3NtamJmdW15cnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3ODk0ODQsImV4cCI6MjEwNDM2NTQ4NH0.YveDHpOEQK7qJQuoomiqotTZQZlslDOnSQrhuFIr_t0";
 
-        // Détection automatique de la bibliothèque Supabase selon le serveur (CDN)
+        // Détection de la bibliothèque selon le chargeur global
         const lib = window.supabase || window.supabasejs;
         const supabase = lib ? (lib.createClient ? lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : lib.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)) : null;
 
@@ -30,7 +123,7 @@
             const errorMsg = document.getElementById("login-error");
 
             if (!supabase) {
-                errorMsg.innerText = "Erreur : La connexion à Supabase n'a pas pu s'initialiser.";
+                errorMsg.innerText = "Erreur : Impossible d'initialiser Supabase. Vérifiez votre connexion internet.";
                 errorMsg.style.display = "block";
                 return;
             }
@@ -46,10 +139,11 @@
                     errorMsg.innerText = "Erreur technique : " + error.message;
                     errorMsg.style.display = "block";
                 } else if (data && data.length > 0) {
-                    // CORRECTION ICI : data[0] pour lire le premier élève trouvé
                     errorMsg.style.display = "none";
                     document.getElementById("login-screen").style.display = "none";
                     document.getElementById("game-screen").style.display = "flex";
+                    
+                    // Correction : Lecture du premier résultat du tableau data
                     document.getElementById("welcome-msg").innerText = `¡Hola! Bonne chance, élève : ${data[0].identifiant}`;
                     initGame();
                 } else {
@@ -57,7 +151,7 @@
                     errorMsg.style.display = "block";
                 }
             } catch (err) {
-                errorMsg.innerText = "Une erreur inconnue est survenue : " + err.message;
+                errorMsg.innerText = "Erreur inconnue : " + err.message;
                 errorMsg.style.display = "block";
             }
         }

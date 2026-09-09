@@ -3,10 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Platino Español - Jeu de Conjugaison</title>
-    <!-- Code officiel et autonome de Supabase intégré à 100% -->
-    <script>
-    !function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).supabase={})}(this,(function(e){"use strict";class t{constructor(e,t){this.supabaseUrl=e,this.supabaseKey=t}from(e){return{select:t=>({eq:(s,n)=>({eq:(o,r)=>this._request(e,t,s,n,o,r)})})}}async _request(e,t,s,n,o,r){try{const i=await fetch(`${this.supabaseUrl}/rest/v1/${e}?select=${t}&${s}=eq.${encodeURIComponent(n)}&${o}=eq.${encodeURIComponent(r)}`,{method:"GET",headers:{apikey:this.supabaseKey,Authorization:`Bearer ${this.supabaseKey}`}});if(!i.ok)return{data:null,error:{message:i.statusText}};return{data:await i.json(),error:null}}catch(e){return{data:null,error:e}}}}e.createClient=(e,r)=>new t(e,r),Object.defineProperty(e,"__esModule",{value:!0})}));
-    </script>
     <style>
         body { font-family: sans-serif; background: #eef2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; color: #2c3e50; }
         h1 { color: #2c3e50; margin-bottom: 5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
@@ -94,12 +90,9 @@
     </div>
 
     <script>
-        // --- ⚙️ CONFIGURATION SUPABASE EMBARQUÉE ---
+        // --- ⚙️ CONFIGURATION SUPABASE STANDARD ---
         const SUPABASE_URL = "https://supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZnZobGVnd3NtamJmdW15cnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3ODk0ODQsImV4cCI6MjEwNDM2NTQ4NH0.YveDHpOEQK7qJQuoomiqotTZQZlslDOnSQrhuFIr_t0";
-
-        // Initialisation directe via la bibliothèque locale injectée
-        const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
         // --- DONNÉES DU JEU ---
         const verbsData = [
@@ -117,30 +110,33 @@
         const labelsContainer = document.getElementById("labels-container");
         let allForms = [];
 
-        // --- GESTION DE LA CONNEXION ---
+        // --- GESTION DE LA CONNEXION DIRECTE PAR L'API HTTP REST ---
         async function handleLogin() {
             const userInput = document.getElementById("username").value.trim();
             const passInput = document.getElementById("password").value.trim();
             const errorMsg = document.getElementById("login-error");
 
-            if (!supabase) {
-                errorMsg.innerText = "Erreur critique : L'application n'a pas pu démarrer.";
-                errorMsg.style.display = "block";
-                return;
-            }
-
             try {
-                // Requête corrigée vers Supabase
-                const result = await supabase
-                    .from('eleves')
-                    .select('*')
-                    .eq('identifiant', userInput)
-                    .eq('mot_de_passe', passInput);
+                // Utilisation de l'API standard HTTP pour éviter les caprices de chargement de bibliothèque
+                const url = `${SUPABASE_URL}/rest/v1/eleves?select=*&identifiant=eq.${encodeURIComponent(userInput)}&mot_de_passe=eq.${encodeURIComponent(passInput)}`;
+                
+                const response = await fetch(url, {
+                    method: "GET",
+                    headers: {
+                        "apikey": SUPABASE_ANON_KEY,
+                        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+                    }
+                });
 
-                if (result.error) {
-                    errorMsg.innerText = "Erreur serveur : " + result.error.message;
+                if (!response.ok) {
+                    errorMsg.innerText = "Erreur serveur : Connexion impossible.";
                     errorMsg.style.display = "block";
-                } else if (result.data && result.data.length > 0) {
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data && data.length > 0) {
                     errorMsg.style.display = "none";
                     document.getElementById("login-screen").style.display = "none";
                     document.getElementById("game-screen").style.display = "flex";

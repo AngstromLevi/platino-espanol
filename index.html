@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Platino Español - Jeu de Conjugaison</title>
     <!-- Chargement de Supabase directement depuis le web -->
-<script src="https://unpkg.com"></script>
+<script src="https://cloudflare.com"></script>
     <style>
         body { font-family: sans-serif; background: #eef2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; color: #2c3e50; }
         h1 { color: #2c3e50; margin-bottom: 5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
@@ -245,6 +245,332 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 alert(`🏆 Félicitations ! Vous avez validé le niveau PLATINE avec brio !`);
             }
         }
+        <script>
+        // --- ⚙️ CONFIGURATION SUPABASE AUTOMATIQUE ---
+        const SUPABASE_URL = "https://supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZnZobGVnd3NtamJmdW15cnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3ODk0ODQsImV4cCI6MjEwNDM2NTQ4NH0.YveDHpOEQK7qJQuoomiqotTZQZlslDOnSQrhuFIr_t0";
+
+        // Détection automatique de la bibliothèque Supabase selon le serveur (CDN)
+        const lib = window.supabase || window.supabasejs || (window.supabasejs ? window.supabasejs : null);
+        const supabase = lib ? (lib.createClient ? lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : lib.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)) : null;
+
+        // --- DONNÉES DU JEU ---
+        const verbsData = [
+            { name: "Hablar (régulier)", forms: ["hablo", "hablas", "habla", "hablamos", "hablais", "hablan"] },
+            { name: "Aprender (régulier)", forms: ["aprendo", "aprendes", "aprende", "aprendemos", "aprendéis", "aprenden"] },
+            { name: "Vivir (régulier)", forms: ["vivo", "vives", "vive", "vivimos", "vivís", "viven"] },
+            { name: "Llamarse (pronominal)", forms: ["me llamo", "te llamas", "se llama", "nos llamamos", "os llamáis", "se llaman"] },
+            { name: "Ser (irrégulier)", forms: ["soy", "eres", "es", "somos", "sois", "son"] },
+            { name: "Tener (irrégulier)", forms: ["tengo", "tienes", "tiene", "tenemos", "tenéis", "tienen"] },
+            { name: "Ir (irrégulier)", forms: ["voy", "vas", "va", "vamos", "vais", "van"] },
+            { name: "Estar (irrégulier)", forms: ["estoy", "estás", "está", "estamos", "estais", "están"] }
+        ];
+
+        const tableBody = document.getElementById("table-body");
+        const labelsContainer = document.getElementById("labels-container");
+        let allForms = [];
+
+        // --- GESTION DE LA CONNEXION ---
+        async function handleLogin() {
+            const userInput = document.getElementById("username").value.trim();
+            const passInput = document.getElementById("password").value.trim();
+            const errorMsg = document.getElementById("login-error");
+
+            if (!supabase) {
+                errorMsg.innerText = "Erreur : La connexion à Supabase a été bloquée par votre réseau / pare-feu.";
+                errorMsg.style.display = "block";
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('eleves')
+                .select('identifiant')
+                .eq('identifiant', userInput)
+                .eq('mot_de_passe', passInput);
+
+            if (error) {
+                errorMsg.innerText = "Erreur technique : " + error.message;
+                errorMsg.style.display = "block";
+            } else if (data && data.length > 0) {
+                errorMsg.style.display = "none";
+                document.getElementById("login-screen").style.display = "none";
+                document.getElementById("game-screen").style.display = "flex";
+                document.getElementById("welcome-msg").innerText = `¡Hola! Bonne chance, élève : ${userInput}`;
+                initGame();
+            } else {
+                errorMsg.innerText = "Identifiant ou mot de passe incorrect.";
+                errorMsg.style.display = "block";
+            }
+        }
+
+        function handleLogout() {
+            document.getElementById("username").value = "";
+            document.getElementById("password").value = "";
+            document.getElementById("game-screen").style.display = "none";
+            document.getElementById("login-screen").style.display = "block";
+            tableBody.innerHTML = "";
+            labelsContainer.innerHTML = "";
+            allForms = [];
+        }
+
+        // --- INITIALISATION DU JEU ---
+        function initGame() {
+            verbsData.forEach((verb, verbIdx) => {
+                const row = document.createElement("tr");
+                const nameCell = document.createElement("td");
+                nameCell.innerHTML = `<strong>${verb.name}</strong>`;
+                row.appendChild(nameCell);
+
+                verb.forms.forEach((form, formIdx) => {
+                    const cell = document.createElement("td");
+                    const dropzone = document.createElement("div");
+                    dropzone.className = "dropzone";
+                    dropzone.dataset.correct = form.toLowerCase();
+                    dropzone.id = `dz-${verbIdx}-${formIdx}`;
+                    
+                    dropzone.addEventListener("dragover", e => e.preventDefault());
+                    dropzone.addEventListener("dragenter", () => dropzone.classList.add("hovered"));
+                    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("hovered"));
+                    dropzone.addEventListener("drop", (e) => {
+                        dropzone.classList.remove("hovered");
+                        const labelId = e.dataTransfer.getData("text/plain");
+                        const labelEl = document.getElementById(labelId);
+                        if (labelEl && dropzone.children.length === 0) {
+                            dropzone.appendChild(labelEl);
+                        }
+                    });
+
+                    cell.appendChild(dropzone);
+                    row.appendChild(cell);
+                    allForms.push(form);
+                });
+                tableBody.appendChild(row);
+            });
+
+            labelsContainer.addEventListener("dragover", e => e.preventDefault());
+            labelsContainer.addEventListener("drop", (e) => {
+                const labelId = e.dataTransfer.getData("text/plain");
+                const labelEl = document.getElementById(labelId);
+                if (labelEl) labelsContainer.appendChild(labelEl);
+            });
+
+            for (let i = allForms.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allForms[i], allForms[j]] = [allForms[j], allForms[i]];
+            }
+
+            allForms.forEach((form, idx) => {
+                const labelEl = document.createElement("div");
+                labelEl.className = "label";
+                labelEl.id = `label-${idx}`;
+                labelEl.draggable = true;
+                labelEl.innerText = form;
+                labelEl.addEventListener("dragstart", (e) => {
+                    e.dataTransfer.setData("text/plain", labelEl.id);
+                });
+                labelsContainer.appendChild(labelEl);
+            });
+        }
+
+        // --- VÉRIFICATION ---
+        function checkGame() {
+            const dropzones = document.querySelectorAll(".dropzone");
+            let errors = 0;
+            let empty = 0;
+
+            dropzones.forEach(dz => {
+                if (dz.children.length === 0) {
+                    empty++;
+                    dz.style.borderColor = "#cbd5e1";
+                } else {
+                    const placedLabel = dz.children[0];
+                    const answer = placedLabel.innerText.trim().toLowerCase();
+                    const correctAnswer = dz.dataset.correct;
+
+                    if (answer === correctAnswer) {
+                        placedLabel.className = "label correct-cell";
+                        dz.style.border = "none";
+                    } else {
+                        errors++;
+                        labelsContainer.appendChild(placedLabel);
+                    }
+                }
+            });
+
+            if (empty > 0) {
+                alert(`Il reste ${empty} cases vides ! Continuez à remplir le tableau.`);
+            } else if (errors > 0) {
+                alert(`Dommage ! Les étiquettes incorrectes ont été renvoyées en bas. Essayez encore !`);
+            } else {
+                alert(`🏆 Félicitations ! Vous avez validé le niveau PLATINE avec brio !`);
+            }
+        }
+        <script>
+        // --- ⚙️ CONFIGURATION SUPABASE AUTOMATIQUE ---
+        const SUPABASE_URL = "https://supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZnZobGVnd3NtamJmdW15cnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3ODk0ODQsImV4cCI6MjEwNDM2NTQ4NH0.YveDHpOEQK7qJQuoomiqotTZQZlslDOnSQrhuFIr_t0";
+
+        // Détection automatique de la bibliothèque Supabase selon le serveur (CDN)
+        const lib = window.supabase || window.supabasejs || (window.supabasejs ? window.supabasejs : null);
+        const supabase = lib ? (lib.createClient ? lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : lib.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)) : null;
+
+        // --- DONNÉES DU JEU ---
+        const verbsData = [
+            { name: "Hablar (régulier)", forms: ["hablo", "hablas", "habla", "hablamos", "hablais", "hablan"] },
+            { name: "Aprender (régulier)", forms: ["aprendo", "aprendes", "aprende", "aprendemos", "aprendéis", "aprenden"] },
+            { name: "Vivir (régulier)", forms: ["vivo", "vives", "vive", "vivimos", "vivís", "viven"] },
+            { name: "Llamarse (pronominal)", forms: ["me llamo", "te llamas", "se llama", "nos llamamos", "os llamáis", "se llaman"] },
+            { name: "Ser (irrégulier)", forms: ["soy", "eres", "es", "somos", "sois", "son"] },
+            { name: "Tener (irrégulier)", forms: ["tengo", "tienes", "tiene", "tenemos", "tenéis", "tienen"] },
+            { name: "Ir (irrégulier)", forms: ["voy", "vas", "va", "vamos", "vais", "van"] },
+            { name: "Estar (irrégulier)", forms: ["estoy", "estás", "está", "estamos", "estais", "están"] }
+        ];
+
+        const tableBody = document.getElementById("table-body");
+        const labelsContainer = document.getElementById("labels-container");
+        let allForms = [];
+
+        // --- GESTION DE LA CONNEXION ---
+        async function handleLogin() {
+            const userInput = document.getElementById("username").value.trim();
+            const passInput = document.getElementById("password").value.trim();
+            const errorMsg = document.getElementById("login-error");
+
+            if (!supabase) {
+                errorMsg.innerText = "Erreur : La connexion à Supabase a été bloquée par votre réseau / pare-feu.";
+                errorMsg.style.display = "block";
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('eleves')
+                .select('identifiant')
+                .eq('identifiant', userInput)
+                .eq('mot_de_passe', passInput);
+
+            if (error) {
+                errorMsg.innerText = "Erreur technique : " + error.message;
+                errorMsg.style.display = "block";
+            } else if (data && data.length > 0) {
+                errorMsg.style.display = "none";
+                document.getElementById("login-screen").style.display = "none";
+                document.getElementById("game-screen").style.display = "flex";
+                document.getElementById("welcome-msg").innerText = `¡Hola! Bonne chance, élève : ${userInput}`;
+                initGame();
+            } else {
+                errorMsg.innerText = "Identifiant ou mot de passe incorrect.";
+                errorMsg.style.display = "block";
+            }
+        }
+
+        function handleLogout() {
+            document.getElementById("username").value = "";
+            document.getElementById("password").value = "";
+            document.getElementById("game-screen").style.display = "none";
+            document.getElementById("login-screen").style.display = "block";
+            tableBody.innerHTML = "";
+            labelsContainer.innerHTML = "";
+            allForms = [];
+        }
+
+        // --- INITIALISATION DU JEU ---
+        function initGame() {
+            verbsData.forEach((verb, verbIdx) => {
+                const row = document.createElement("tr");
+                const nameCell = document.createElement("td");
+                nameCell.innerHTML = `<strong>${verb.name}</strong>`;
+                row.appendChild(nameCell);
+
+                verb.forms.forEach((form, formIdx) => {
+                    const cell = document.createElement("td");
+                    const dropzone = document.createElement("div");
+                    dropzone.className = "dropzone";
+                    dropzone.dataset.correct = form.toLowerCase();
+                    dropzone.id = `dz-${verbIdx}-${formIdx}`;
+                    
+                    dropzone.addEventListener("dragover", e => e.preventDefault());
+                    dropzone.addEventListener("dragenter", () => dropzone.classList.add("hovered"));
+                    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("hovered"));
+                    dropzone.addEventListener("drop", (e) => {
+                        dropzone.classList.remove("hovered");
+                        const labelId = e.dataTransfer.getData("text/plain");
+                        const labelEl = document.getElementById(labelId);
+                        if (labelEl && dropzone.children.length === 0) {
+                            dropzone.appendChild(labelEl);
+                        }
+                    });
+
+                    cell.appendChild(dropzone);
+                    row.appendChild(cell);
+                    allForms.push(form);
+                });
+                tableBody.appendChild(row);
+            });
+
+            labelsContainer.addEventListener("dragover", e => e.preventDefault());
+            labelsContainer.addEventListener("drop", (e) => {
+                const labelId = e.dataTransfer.getData("text/plain");
+                const labelEl = document.getElementById(labelId);
+                if (labelEl) labelsContainer.appendChild(labelEl);
+            });
+
+            for (let i = allForms.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allForms[i], allForms[j]] = [allForms[j], allForms[i]];
+            }
+
+            allForms.forEach((form, idx) => {
+                const labelEl = document.createElement("div");
+                labelEl.className = "label";
+                labelEl.id = `label-${idx}`;
+                labelEl.draggable = true;
+                labelEl.innerText = form;
+                labelEl.addEventListener("dragstart", (e) => {
+                    e.dataTransfer.setData("text/plain", labelEl.id);
+                });
+                labelsContainer.appendChild(labelEl);
+            });
+        }
+
+        // --- VÉRIFICATION ---
+        function checkGame() {
+            const dropzones = document.querySelectorAll(".dropzone");
+            let errors = 0;
+            let empty = 0;
+
+            dropzones.forEach(dz => {
+                if (dz.children.length === 0) {
+                    empty++;
+                    dz.style.borderColor = "#cbd5e1";
+                } else {
+                    const placedLabel = dz.children[0];
+                    const answer = placedLabel.innerText.trim().toLowerCase();
+                    const correctAnswer = dz.dataset.correct;
+
+                    if (answer === correctAnswer) {
+                        placedLabel.className = "label correct-cell";
+                        dz.style.border = "none";
+                    } else {
+                        errors++;
+                        labelsContainer.appendChild(placedLabel);
+                    }
+                }
+            });
+
+            if (empty > 0) {
+                alert(`Il reste ${empty} cases vides ! Continuez à remplir le tableau.`);
+            } else if (errors > 0) {
+                alert(`Dommage ! Les étiquettes incorrectes ont été renvoyées en bas. Essayez encore !`);
+            } else {
+                alert(`🏆 Félicitations ! Vous avez validé le niveau PLATINE avec brio !`);
+            }
+        }
     </script>
+</body>
+</html>
+
+</body>
+</html>
+
 </body>
 </html>

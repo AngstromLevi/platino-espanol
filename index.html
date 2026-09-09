@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Platino Español - Jeu de Conjugaison</title>
     <!-- Chargement de Supabase directement depuis le web -->
-    <script src="https://jsdelivr.net"></script>
+<script src="https://unpkg.com"></script>
     <style>
         body { font-family: sans-serif; background: #eef2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; color: #2c3e50; }
         h1 { color: #2c3e50; margin-bottom: 5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
@@ -97,7 +97,8 @@
         const SUPABASE_URL = "https://supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZnZobGVnd3NtamJmdW15cnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3ODk0ODQsImV4cCI6MjEwNDM2NTQ4NH0.YveDHpOEQK7qJQuoomiqotTZQZlslDOnSQrhuFIr_t0";
 
-        const supabase = supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const { createClient } = window.supabase;
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // --- DONNÉES DU JEU ---
         const verbsData = [

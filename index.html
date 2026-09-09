@@ -20,6 +20,10 @@
         #game-screen { display: none; flex-direction: column; align-items: center; width: 100%; }
         #welcome-msg { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; color: #0076ff; }
 
+        /* --- Tableau de bord (Chrono & Erreurs) --- */
+        .dashboard { display: flex; gap: 30px; background: white; padding: 10px 30px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; font-size: 1.1rem; font-weight: bold; }
+        .dash-item span { color: #0076ff; font-size: 1.3rem; }
+
         table { border-collapse: collapse; width: 100%; max-width: 950px; background: white; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; margin-bottom: 25px; }
         th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: center; }
         th { background-color: #334155; color: #f8fafc; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; }
@@ -65,6 +69,12 @@
         <div id="welcome-msg"></div>
         <p class="instructions">Glissez les étiquettes du bas dans les bonnes cases du tableau pour atteindre le niveau Platine !</p>
 
+        <!-- NOUVEAU : TABLEAU DE BORD CHRONO & ERREURS -->
+        <div class="dashboard">
+            <div class="dash-item">⏱️ Temps : <span id="chrono-val">00:00</span></div>
+            <div class="dash-item">❌ Erreurs : <span id="error-val">0</span></div>
+        </div>
+
         <table>
             <thead>
                 <tr>
@@ -90,9 +100,12 @@
     </div>
 
     <script>
-        // --- ⚙️ CONFIGURATION SUPABASE STANDARD ---
-        const SUPABASE_URL = "https://supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZnZobGVnd3NtamJmdW15cnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3ODk0ODQsImV4cCI6MjEwNDM2NTQ4NH0.YveDHpOEQK7qJQuoomiqotTZQZlslDOnSQrhuFIr_t0";
+        // --- 👥 BASE DE DONNÉES LOCALE ---
+        const localUsers = {};
+        for(let i = 1; i <= 25; i++) {
+            const pad = i < 10 ? "0" + i : i;
+            localUsers["eleve" + i] = "platino" + pad;
+        }
 
         // --- DONNÉES DU JEU ---
         const verbsData = [
@@ -109,46 +122,54 @@
         const tableBody = document.getElementById("table-body");
         const labelsContainer = document.getElementById("labels-container");
         let allForms = [];
+        
+        // --- GESTION DU CHRONOMÈTRE ET DES ERREURS ---
+        let startTime;
+        let chronoInterval;
+        let totalErrors = 0;
 
-        // --- GESTION DE LA CONNEXION DIRECTE PAR L'API HTTP REST ---
-        async function handleLogin() {
-            const userInput = document.getElementById("username").value.trim();
+        function startTimer() {
+            startTime = Date.now();
+            chronoInterval = setInterval(() => {
+                const elapsedTime = Date.now() - startTime;
+                const totalSeconds = Math.floor(elapsedTime / 1000);
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                
+                const padMin = minutes < 10 ? "0" + minutes : minutes;
+                const padSec = seconds < 10 ? "0" + seconds : seconds;
+                
+                document.getElementById("chrono-val").innerText = `${padMin}:${padSec}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(chronoInterval);
+        }
+
+        function resetStats() {
+            stopTimer();
+            totalErrors = 0;
+            document.getElementById("error-val").innerText = "0";
+            document.getElementById("chrono-val").innerText = "00:00";
+        }
+
+        // --- GESTION DE LA CONNEXION ---
+        function handleLogin() {
+            const userInput = document.getElementById("username").value.trim().toLowerCase();
             const passInput = document.getElementById("password").value.trim();
             const errorMsg = document.getElementById("login-error");
 
-            try {
-                // Utilisation de l'API standard HTTP pour éviter les caprices de chargement de bibliothèque
-                const url = `${SUPABASE_URL}/rest/v1/eleves?select=*&identifiant=eq.${encodeURIComponent(userInput)}&mot_de_passe=eq.${encodeURIComponent(passInput)}`;
-                
-                const response = await fetch(url, {
-                    method: "GET",
-                    headers: {
-                        "apikey": SUPABASE_ANON_KEY,
-                        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
-                    }
-                });
-
-                if (!response.ok) {
-                    errorMsg.innerText = "Erreur serveur : Connexion impossible.";
-                    errorMsg.style.display = "block";
-                    return;
-                }
-
-                const data = await response.json();
-
-                if (data && data.length > 0) {
-                    errorMsg.style.display = "none";
-                    document.getElementById("login-screen").style.display = "none";
-                    document.getElementById("game-screen").style.display = "flex";
-                    
-                    document.getElementById("welcome-msg").innerText = `¡Hola! Bonne chance, élève : ${userInput}`;
-                    initGame();
-                } else {
-                    errorMsg.innerText = "Identifiant ou mot de passe incorrect.";
-                    errorMsg.style.display = "block";
-                }
-            } catch (err) {
-                errorMsg.innerText = "Erreur de connexion : " + err.message;
+            if (localUsers[userInput] && localUsers[userInput] === passInput) {
+                errorMsg.style.display = "none";
+                document.getElementById("login-screen").style.display = "none";
+                document.getElementById("game-screen").style.display = "flex";
+                document.getElementById("welcome-msg").innerText = `¡Hola! Bonne chance, élève : ${userInput}`;
+                resetStats();
+                initGame();
+                startTimer(); // Démarrage automatique du chrono à la connexion
+            } else {
+                errorMsg.innerText = "Identifiant ou mot de passe incorrect.";
                 errorMsg.style.display = "block";
             }
         }
@@ -161,6 +182,7 @@
             tableBody.innerHTML = "";
             labelsContainer.innerHTML = "";
             allForms = [];
+            resetStats();
         }
 
         // --- INITIALISATION DU JEU ---
@@ -225,7 +247,7 @@
         // --- VÉRIFICATION ---
         function checkGame() {
             const dropzones = document.querySelectorAll(".dropzone");
-            let errors = 0;
+            let roundErrors = 0;
             let empty = 0;
 
             dropzones.forEach(dz => {
@@ -240,19 +262,27 @@
                     if (answer === correctAnswer) {
                         placedLabel.className = "label correct-cell";
                         dz.style.border = "none";
+                        placedLabel.draggable = false; // Bloquer l'étiquette si elle est juste
                     } else {
-                        errors++;
-                        labelsContainer.appendChild(placedLabel);
+                        roundErrors++;
+                        labelsContainer.appendChild(placedLabel); // Renvoi en bas
                     }
                 }
             });
 
             if (empty > 0) {
                 alert(`Il reste ${empty} cases vides ! Continuez à remplir le tableau.`);
-            } else if (errors > 0) {
-                alert(`Dommage ! Les étiquettes incorrectes ont été renvoyées en bas. Essayez encore !`);
+                return;
+            }
+
+            if (roundErrors > 0) {
+                totalErrors += roundErrors;
+                document.getElementById("error-val").innerText = totalErrors;
+                alert(`Dommage ! ${roundErrors} étiquette(s) incorrecte(s) ont été renvoyée(s) en bas. Votre compteur d'erreurs grimpe !`);
             } else {
-                alert(`🏆 Félicitations ! Vous avez validé le niveau PLATINE avec brio !`);
+                stopTimer();
+                const finalTime = document.getElementById("chrono-val").innerText;
+                alert(`🏆 MAGNIFIQUE ! Vous avez validé le niveau PLATINE !\n⏱️ Temps final : ${finalTime}\n❌ Total d'erreurs : ${totalErrors}`);
             }
         }
     </script>

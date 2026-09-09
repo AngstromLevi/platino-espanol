@@ -51,7 +51,6 @@
         button.logout-btn { background: #64748b; }
         button.logout-btn:hover { background: #475569; }
 
-        /* --- NOUVEAU STYLE : Section Classement --- */
         .leaderboard-box { width: 100%; max-width: 500px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); margin-top: 20px; text-align: center; }
         .leaderboard-box h2 { margin-top: 0; color: #334155; font-size: 1.4rem; border-bottom: 2px solid #eef2f5; padding-bottom: 10px; }
         .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -117,7 +116,7 @@
                 <button class="logout-btn" onclick="handleLogout()">Se déconnecter</button>
             </div>
 
-            <!-- NOUVELLE SECTION : LE TABLEAU DES CHAMPIONS -->
+            <!-- SECTION : LE TABLEAU DES CHAMPIONS -->
             <div class="leaderboard-box">
                 <h2>🏆 Tableau des Champions (Top Éleves)</h2>
                 <table class="leaderboard-table">
@@ -129,9 +128,7 @@
                             <th>Erreurs</th>
                         </tr>
                     </thead>
-                    <tbody id="leaderboard-body">
-                        <!-- Rempli dynamiquement en JavaScript -->
-                    </tbody>
+                    <tbody id="leaderboard-body"></tbody>
                 </table>
             </div>
 
@@ -139,12 +136,9 @@
     </div>
 
     <script>
-        // --- 👥 BASE DE DONNÉES LOCALE DES COMPTES ---
-        const localUsers = {};
-        for(let i = 1; i <= 25; i++) {
-            const pad = i < 10 ? "0" + i : i;
-            localUsers["eleve" + i] = "platino" + pad;
-        }
+        // --- ⚙️ CONFIGURATION SUPABASE STANDARD CORRIGÉE ---
+        const SUPABASE_URL = "https://supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZnZobGVnd3NtamJmdW15cnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3ODk0ODQsImV4cCI6MjEwNDM2NTQ4NH0.YveDHpOEQK7qJQuoomiqotTZQZlslDOnSQrhuFIr_t0";
 
         // --- DONNÉES DU JEU ---
         const verbsData = [
@@ -196,28 +190,52 @@
             document.getElementById("start-game-btn").style.display = "block";
         }
 
-        // --- GESTION DE LA CONNEXION ---
-        function handleLogin() {
-            const userInput = document.getElementById("username").value.trim().toLowerCase();
+        // --- NOUVELLE GESTION DE CONNEXION DIRECTE PAR L'API HTTP (LIRE SUPABASE EN DIRECT) ---
+        async function handleLogin() {
+            const userInput = document.getElementById("username").value.trim();
             const passInput = document.getElementById("password").value.trim();
             const errorMsg = document.getElementById("login-error");
 
-            if (localUsers[userInput] && localUsers[userInput] === passInput) {
-                errorMsg.style.display = "none";
-                document.getElementById("login-screen").style.display = "none";
-                document.getElementById("game-screen").style.display = "flex";
-                document.getElementById("welcome-msg").innerText = `¡Hola! Prêt pour le défi, élève : ${userInput}`;
+            try {
+                // Interrogation de Supabase à la norme REST API PostgREST
+                const url = `${SUPABASE_URL}/rest/v1/eleves?identifiant=eq.${encodeURIComponent(userInput)}&mot_de_passe=eq.${encodeURIComponent(passInput)}`;
                 
-                currentStudent = userInput; 
-                tableBody.innerHTML = "";
-                labelsContainer.innerHTML = "";
-                allForms = [];
-                
-                resetStats();
-                initGame(); 
-                updateLeaderboardUI(); 
-            } else {
-                errorMsg.innerText = "Identifiant ou mot de passe incorrect.";
+                const response = await fetch(url, {
+                    method: "GET",
+                    headers: {
+                        "apikey": SUPABASE_ANON_KEY,
+                        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+                    }
+                });
+
+                if (!response.ok) {
+                    errorMsg.innerText = "Erreur de communication avec Supabase.";
+                    errorMsg.style.display = "block";
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data && data.length > 0) {
+                    errorMsg.style.display = "none";
+                    document.getElementById("login-screen").style.display = "none";
+                    document.getElementById("game-screen").style.display = "flex";
+                    document.getElementById("welcome-msg").innerText = `¡Hola! Prêt pour le défi, élève : ${userInput}`;
+                    
+                    currentStudent = userInput; 
+                    tableBody.innerHTML = "";
+                    labelsContainer.innerHTML = "";
+                    allForms = [];
+                    
+                    resetStats();
+                    initGame(); 
+                    updateLeaderboardUI(); 
+                } else {
+                    errorMsg.innerText = "Identifiant ou mot de passe incorrect (Vérifiez Supabase).";
+                    errorMsg.style.display = "block";
+                }
+            } catch (err) {
+                errorMsg.innerText = "Erreur réseau : " + err.message;
                 errorMsg.style.display = "block";
             }
         }
@@ -330,7 +348,7 @@
                     empty++;
                     dz.style.borderColor = "#cbd5e1";
                 } else {
-                    const placedLabel = dz.children[0];
+                    const placedLabel = dz.children;
                     const answer = placedLabel.innerText.trim().toLowerCase();
                     const correctAnswer = dz.dataset.correct;
 
@@ -368,7 +386,7 @@
             }
         }
 
-        // --- LOGIQUE DU CLASSEMENT (LOCALSTORAGE) ---
+        // --- LOGIQUE DU CLASSEMENT ---
         function saveStudentScore(student, timeStr, seconds, errors) {
             let scores = JSON.parse(localStorage.getItem("platino_scores")) || {};
             if (!scores[student] || seconds < scores[student].seconds) {

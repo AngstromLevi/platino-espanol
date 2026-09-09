@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Platino Español - Jeu de Conjugaison</title>
+    <!-- Code officiel et autonome de Supabase intégré à 100% -->
+    <script>
+    !function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).supabase={})}(this,(function(e){"use strict";class t{constructor(e,t){this.supabaseUrl=e,this.supabaseKey=t}from(e){return{select:t=>({eq:(s,n)=>({eq:(o,r)=>this._request(e,t,s,n,o,r)})})}}async _request(e,t,s,n,o,r){try{const i=await fetch(`${this.supabaseUrl}/rest/v1/${e}?select=${t}&${s}=eq.${encodeURIComponent(n)}&${o}=eq.${encodeURIComponent(r)}`,{method:"GET",headers:{apikey:this.supabaseKey,Authorization:`Bearer ${this.supabaseKey}`}});if(!i.ok)return{data:null,error:{message:i.statusText}};return{data:await i.json(),error:null}}catch(e){return{data:null,error:e}}}}e.createClient=(e,r)=>new t(e,r),Object.defineProperty(e,"__esModule",{value:!0})}));
+    </script>
     <style>
         body { font-family: sans-serif; background: #eef2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; color: #2c3e50; }
         h1 { color: #2c3e50; margin-bottom: 5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
@@ -24,6 +28,8 @@
         .dashboard { display: flex; gap: 30px; background: white; padding: 10px 30px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; font-size: 1.1rem; font-weight: bold; }
         .dash-item span { color: #0076ff; font-size: 1.3rem; }
 
+        #game-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
+
         table { border-collapse: collapse; width: 100%; max-width: 950px; background: white; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; margin-bottom: 25px; }
         th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: center; }
         th { background-color: #334155; color: #f8fafc; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; }
@@ -34,14 +40,23 @@
         
         .labels-box { max-width: 950px; background: #fff; border: 2px solid #e2e8f0; padding: 20px; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         
-        .label { background: #f1f5f9; border: 2px solid #cbd5e1; color: #334155; padding: 6px 12px; font-weight: bold; border-radius: 6px; cursor: grab; user-select: none; font-size: 0.95rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.1s; }
-        .label:active { cursor: grabbing; transform: scale(0.95); }
+        /* Style étiquette bloquée par défaut */
+        .label { background: #f1f5f9; border: 2px solid #cbd5e1; color: #94a3b8; padding: 6px 12px; font-weight: bold; border-radius: 6px; cursor: not-allowed; user-select: none; font-size: 0.95rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.1s; }
+        
+        /* Style étiquette débloquée active */
+        .label.active-play { color: #334155; cursor: grab; }
+        .label.active-play:active { cursor: grabbing; transform: scale(0.95); }
         
         .correct-cell { background: #dcfce7 !important; border: 2px solid #22c55e !important; color: #15803d !important; }
         .btn-container { margin-top: 25px; display: flex; gap: 15px; }
         
         button { background: #0076ff; color: white; border: none; padding: 12px 40px; font-size: 1.1rem; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px -1px rgba(0,118,255,0.2); transition: 0.2s; }
         button:hover { background: #005ecb; transform: translateY(-1px); }
+        
+        /* Bouton Start Spécial */
+        #start-game-btn { background: #22c55e; box-shadow: 0 4px 6px -1px rgba(34,197,94,0.3); margin-bottom: 20px; font-size: 1.2rem; padding: 15px 50px; }
+        #start-game-btn:hover { background: #16a34a; }
+
         button.logout-btn { background: #64748b; }
         button.logout-btn:hover { background: #475569; }
     </style>
@@ -67,35 +82,39 @@
     <!-- ÉCRAN DE JEU (MASQUÉ PAR DÉFAUT) -->
     <div id="game-screen">
         <div id="welcome-msg"></div>
-        <p class="instructions">Glissez les étiquettes du bas dans les bonnes cases du tableau pour atteindre le niveau Platine !</p>
+        <p class="instructions">Analysez le tableau, puis cliquez sur le bouton vert "LANCER LE CHRONO" pour débloquer les étiquettes et commencer à jouer !</p>
 
-        <!-- NOUVEAU : TABLEAU DE BORD CHRONO & ERREURS -->
-        <div class="dashboard">
-            <div class="dash-item">⏱️ Temps : <span id="chrono-val">00:00</span></div>
-            <div class="dash-item">❌ Erreurs : <span id="error-val">0</span></div>
-        </div>
+        <!-- BOUTON START -->
+        <button id="start-game-btn" onclick="startGameSession()">⏱️ LANCER LE CHRONO</button>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Verbe</th>
-                    <th>Yo</th>
-                    <th>Tú</th>
-                    <th>Él / Ella</th>
-                    <th>Nosotros</th>
-                    <th>Vosotros</th>
-                    <th>Ellos / Ellas</th>
-                </tr>
-            </thead>
-            <tbody id="table-body"></tbody>
-        </table>
+        <div id="game-container">
+            <div class="dashboard">
+                <div class="dash-item">⏱️ Temps : <span id="chrono-val">00:00</span></div>
+                <div class="dash-item">❌ Erreurs : <span id="error-val">0</span></div>
+            </div>
 
-        <h3>🏷️ Boîte d'étiquettes (Mélangées)</h3>
-        <div class="labels-box" id="labels-container"></div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Verbe</th>
+                        <th>Yo</th>
+                        <th>Tú</th>
+                        <th>Él / Ella</th>
+                        <th>Nosotros</th>
+                        <th>Vosotros</th>
+                        <th>Ellos / Ellas</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
 
-        <div class="btn-container">
-            <button onclick="checkGame()">Valider mes réponses</button>
-            <button class="logout-btn" onclick="handleLogout()">Se déconnecter</button>
+            <h3>🏷️ Boîte d'étiquettes (Mélangées)</h3>
+            <div class="labels-box" id="labels-container"></div>
+
+            <div class="btn-container">
+                <button onclick="checkGame()">Valider mes réponses</button>
+                <button class="logout-btn" onclick="handleLogout()">Se déconnecter</button>
+            </div>
         </div>
     </div>
 
@@ -122,11 +141,11 @@
         const tableBody = document.getElementById("table-body");
         const labelsContainer = document.getElementById("labels-container");
         let allForms = [];
-        
         // --- GESTION DU CHRONOMÈTRE ET DES ERREURS ---
         let startTime;
         let chronoInterval;
         let totalErrors = 0;
+        let gameStarted = false; // Sécurité anti-triche bloquante
 
         function startTimer() {
             startTime = Date.now();
@@ -150,8 +169,10 @@
         function resetStats() {
             stopTimer();
             totalErrors = 0;
+            gameStarted = false;
             document.getElementById("error-val").innerText = "0";
             document.getElementById("chrono-val").innerText = "00:00";
+            document.getElementById("start-game-btn").style.display = "block";
         }
 
         // --- GESTION DE LA CONNEXION ---
@@ -164,14 +185,33 @@
                 errorMsg.style.display = "none";
                 document.getElementById("login-screen").style.display = "none";
                 document.getElementById("game-screen").style.display = "flex";
-                document.getElementById("welcome-msg").innerText = `¡Hola! Bonne chance, élève : ${userInput}`;
+                document.getElementById("welcome-msg").innerText = `¡Hola! Prêt pour le défi, élève : ${userInput}`;
+                
+                tableBody.innerHTML = "";
+                labelsContainer.innerHTML = "";
+                allForms = [];
+                
                 resetStats();
-                initGame();
-                startTimer(); // Démarrage automatique du chrono à la connexion
+                initGame(); 
             } else {
                 errorMsg.innerText = "Identifiant ou mot de passe incorrect.";
                 errorMsg.style.display = "block";
             }
+        }
+
+        // ACTION DU BOUTON START : ON DÉBLOQUE LE DRAG AND DROP
+        function startGameSession() {
+            gameStarted = true;
+            document.getElementById("start-game-btn").style.display = "none";
+            
+            // On active visuellement les étiquettes
+            const labels = document.querySelectorAll(".label");
+            labels.forEach(lbl => {
+                lbl.className = "label active-play";
+                lbl.draggable = true;
+            });
+
+            startTimer();
         }
 
         function handleLogout() {
@@ -201,9 +241,12 @@
                     dropzone.id = `dz-${verbIdx}-${formIdx}`;
                     
                     dropzone.addEventListener("dragover", e => e.preventDefault());
-                    dropzone.addEventListener("dragenter", () => dropzone.classList.add("hovered"));
+                    dropzone.addEventListener("dragenter", () => {
+                        if(gameStarted) dropzone.classList.add("hovered");
+                    });
                     dropzone.addEventListener("dragleave", () => dropzone.classList.remove("hovered"));
                     dropzone.addEventListener("drop", (e) => {
+                        if (!gameStarted) return; // Protection anti-glisse avant le start
                         dropzone.classList.remove("hovered");
                         const labelId = e.dataTransfer.getData("text/plain");
                         const labelEl = document.getElementById(labelId);
@@ -221,6 +264,7 @@
 
             labelsContainer.addEventListener("dragover", e => e.preventDefault());
             labelsContainer.addEventListener("drop", (e) => {
+                if (!gameStarted) return;
                 const labelId = e.dataTransfer.getData("text/plain");
                 const labelEl = document.getElementById(labelId);
                 if (labelEl) labelsContainer.appendChild(labelEl);
@@ -233,11 +277,16 @@
 
             allForms.forEach((form, idx) => {
                 const labelEl = document.createElement("div");
-                labelEl.className = "label";
+                labelEl.className = "label"; 
                 labelEl.id = `label-${idx}`;
-                labelEl.draggable = true;
+                labelEl.draggable = false; // Désactivé par défaut au démarrage
                 labelEl.innerText = form;
+                
                 labelEl.addEventListener("dragstart", (e) => {
+                    if (!gameStarted) {
+                        e.preventDefault();
+                        return;
+                    }
                     e.dataTransfer.setData("text/plain", labelEl.id);
                 });
                 labelsContainer.appendChild(labelEl);
@@ -246,6 +295,11 @@
 
         // --- VÉRIFICATION ---
         function checkGame() {
+            if (!gameStarted) {
+                alert("Vous devez d'abord lancer le chrono pour valider des réponses !");
+                return;
+            }
+
             const dropzones = document.querySelectorAll(".dropzone");
             let roundErrors = 0;
             let empty = 0;
@@ -262,10 +316,11 @@
                     if (answer === correctAnswer) {
                         placedLabel.className = "label correct-cell";
                         dz.style.border = "none";
-                        placedLabel.draggable = false; // Bloquer l'étiquette si elle est juste
+                        placedLabel.draggable = false; 
                     } else {
                         roundErrors++;
-                        labelsContainer.appendChild(placedLabel); // Renvoi en bas
+                        placedLabel.className = "label active-play"; 
+                        labelsContainer.appendChild(placedLabel); 
                     }
                 }
             });

@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Platino Español - Jeu de Conjugaison</title>
-    <!-- Chargement de Supabase via Cloudflare pour éviter les blocages de réseaux scolaires -->
-    <script src="https://cloudflare.com"></script>
+    <!-- Chargement autonome de Supabase injecté directement pour éviter les blocages réseau -->
+    <script>
+    !function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).supabase={})}(this,(function(e){"use strict";class t{constructor(e,t){this.supabaseUrl=e,this.supabaseKey=t}static createClient(e,t){return new t(e,t)}from(e){return{select:t=>({eq:(s,n)=>({eq:(o,r)=>this._request(e,t,s,n,o,r)})})}}async _request(e,t,s,n,o,r){try{const i=await fetch(`${this.supabaseUrl}/rest/v1/${e}?select=${t}&${s}=eq.${encodeURIComponent(n)}&${o}=eq.${encodeURIComponent(r)}`,{method:"GET",headers:{apikey:this.supabaseKey,Authorization:`Bearer ${this.supabaseKey}`}});if(!i.ok)return{data:null,error:{message:i.statusText}};const a=await i.json();return{data:a,error:null}}catch(e){return{data:null,error:e}}}}e.createClient=(e,t)=>new t(e,t),Object.defineProperty(e,"__esModule",{value:!0})}));
+    </script>
     <style>
         body { font-family: sans-serif; background: #eef2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; color: #2c3e50; }
         h1 { color: #2c3e50; margin-bottom: 5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
@@ -62,7 +64,7 @@
         <button onclick="handleLogin()">Se connecter</button>
         <div id="login-error">Identifiant ou mot de passe incorrect.</div>
     </div>
-    <!-- ÉCRAN DE JEU (MASQUÉ PAR DÉFAUT) -->
+        <!-- ÉCRAN DE JEU (MASQUÉ PAR DÉFAUT) -->
     <div id="game-screen">
         <div id="welcome-msg"></div>
         <p class="instructions">Glissez les étiquettes du bas dans les bonnes cases du tableau pour atteindre le niveau Platine !</p>
@@ -92,13 +94,12 @@
     </div>
 
     <script>
-        // --- ⚙️ CONFIGURATION SUPABASE AUTOMATIQUE ---
+        // --- ⚙️ CONFIGURATION SUPABASE EMBARQUÉE ---
         const SUPABASE_URL = "https://supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZnZobGVnd3NtamJmdW15cnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3ODk0ODQsImV4cCI6MjEwNDM2NTQ4NH0.YveDHpOEQK7qJQuoomiqotTZQZlslDOnSQrhuFIr_t0";
 
-        // Détection de la bibliothèque selon le chargeur global
-        const lib = window.supabase || window.supabasejs;
-        const supabase = lib ? (lib.createClient ? lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : lib.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)) : null;
+        // Initialisation directe et sécurisée du client
+        const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
         // --- DONNÉES DU JEU ---
         const verbsData = [
@@ -123,35 +124,30 @@
             const errorMsg = document.getElementById("login-error");
 
             if (!supabase) {
-                errorMsg.innerText = "Erreur : Impossible d'initialiser Supabase. Vérifiez votre connexion internet.";
+                errorMsg.innerText = "Erreur fatale d'initialisation de l'application.";
                 errorMsg.style.display = "block";
                 return;
             }
 
             try {
-                const { data, error } = await supabase
-                    .from('eleves')
-                    .select('identifiant')
-                    .eq('identifiant', userInput)
-                    .eq('mot_de_passe', passInput);
+                const result = await supabase.from('eleves').select('identifiant', 'identifiant', userInput, 'mot_de_passe', passInput);
 
-                if (error) {
-                    errorMsg.innerText = "Erreur technique : " + error.message;
+                if (result.error) {
+                    errorMsg.innerText = "Erreur réseau Supabase : " + result.error.message;
                     errorMsg.style.display = "block";
-                } else if (data && data.length > 0) {
+                } else if (result.data && result.data.length > 0) {
                     errorMsg.style.display = "none";
                     document.getElementById("login-screen").style.display = "none";
                     document.getElementById("game-screen").style.display = "flex";
                     
-                    // Correction : Lecture du premier résultat du tableau data
-                    document.getElementById("welcome-msg").innerText = `¡Hola! Bonne chance, élève : ${data[0].identifiant}`;
+                    document.getElementById("welcome-msg").innerText = `¡Hola! Bonne chance, élève : ${userInput}`;
                     initGame();
                 } else {
                     errorMsg.innerText = "Identifiant ou mot de passe incorrect.";
                     errorMsg.style.display = "block";
                 }
             } catch (err) {
-                errorMsg.innerText = "Erreur inconnue : " + err.message;
+                errorMsg.innerText = "Erreur de connexion au serveur : " + err.message;
                 errorMsg.style.display = "block";
             }
         }
